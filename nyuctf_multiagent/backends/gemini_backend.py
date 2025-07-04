@@ -9,10 +9,15 @@ from .backend import Backend, BackendResponse
 class GeminiBackend(Backend):
     NAME = "gemini"
     MODELS = {
-        "gemini-2.0-flash-exp": {
+        "gemini-2.5-pro": {
+            "max_context": 2000000,
+            "cost_per_input_token": 1.25e-06,
+            "cost_per_output_token": 1e-05
+        },
+        "gemini-2.5-flash": {
             "max_context": 1000000,
-            "cost_per_input_token": 0,
-            "cost_per_output_token": 0
+            "cost_per_input_token": 3e-07,
+            "cost_per_output_token": 2.5e-06
         },
         "gemini-1.5-flash": {
             "max_context": 1000000,

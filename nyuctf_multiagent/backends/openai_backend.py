@@ -51,6 +51,11 @@ class OpenAIBackend(Backend):
             "cost_per_input_token": 10e-06,
             "cost_per_output_token": 30e-06
         },
+        "gpt-4.1-2025-04-14": {
+            "max_context": 1000000,
+            "cost_per_input_token": 2e-06,
+            "cost_per_output_token": 8e-06
+        }
     }
 
     def __init__(self, role, model, tools, api_key, config):

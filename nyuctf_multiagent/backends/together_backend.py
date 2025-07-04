@@ -9,6 +9,21 @@ class TogetherBackend(OpenAIBackend):
     """
     NAME = "together"
     MODELS = {
+        "deepseek-ai/DeepSeek-V3": {
+            "max_context": 131072,
+            "cost_per_input_token": 0.18e-06,
+            "cost_per_output_token": 0.18e-06,
+        },
+        "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": {
+            "max_context": 131072,
+            "cost_per_input_token": 0.27e-06,
+            "cost_per_output_token": 0.85e-06,
+        },
+        "Qwen/Qwen3-235B-A22B-fp8-tput": {
+            "max_context": 38912,
+            "cost_per_input_token": 0.20e-06,
+            "cost_per_output_token": 0.60e-06,
+        },
         "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo": {
             "max_context": 131072,
             "cost_per_input_token": 0.18e-06,

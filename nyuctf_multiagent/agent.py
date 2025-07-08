@@ -282,7 +282,7 @@ class AutoPromptAgent(BaseAgent):
             return
         # Print parsed tool_call
         self.print_parsed_call(parsed_call)
-        if parsed_call.name == FinishTaskTool.NAME:
+        if parsed_call.name == GenAutoPromptTool.NAME:
             # Set the task summary
             self.autoprompt = parsed_call.parsed_arguments.get("prompt", None)
         # If any other tool is called, model still does not generate summary.

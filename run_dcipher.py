@@ -27,6 +27,7 @@ parser.add_argument("--executor-model", default=None, help="Executor model to us
 parser.add_argument("--autoprompter-model", default=None, help="AutoPrompt model to use (overrides config)")
 parser.add_argument("--max-cost", default=0.0, type=float, help="Max cost in $ (overrides config)")
 parser.add_argument("--enable-autoprompt", action="store_true", help="Init prompt message auto generated, else use generic base prompt")
+parser.add_argument("--strict", action="store_true", help="Enable strict mode for function calling") # TODO only works for Together, add to other backends
 
 args = parser.parse_args()
 
@@ -57,6 +58,10 @@ logger.print(f"Using config: {str(config_f)}", force=True)
 config = load_config(config_f, args=args)
 
 config.experiment.enable_autoprompt = True if args.enable_autoprompt else config.experiment.enable_autoprompt
+if args.strict:
+    config.planner.strict = True
+    config.executor.strict = True
+    config.autoprompter.strict = True
 
 autoprompter_backend_cls = MODELS[config.autoprompter.model]
 autoprompter_backend = autoprompter_backend_cls(Role.AUTOPROMPTER, config.autoprompter.model,

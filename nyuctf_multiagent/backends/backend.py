@@ -65,6 +65,13 @@ class Backend:
                 tool_call.parsed_arguments = json.loads(tool_call.arguments)
             else:
                 tool_call.parsed_arguments = tool_call.arguments
+
+            if tool_call.name not in self.tools:
+                # The parsed tool call was not found in our set of tools, return error
+                tool_res = ToolResult.error_for_call(
+                                tool_call, f"Tool {tool_call.name} not found. Use one of the provided tools: {list(self.tools.keys())}")
+                return False, tool_res
+
             tool = self.tools[tool_call.name]
 
             present = set(tool_call.parsed_arguments.keys())

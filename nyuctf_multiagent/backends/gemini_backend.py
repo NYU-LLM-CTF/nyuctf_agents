@@ -105,10 +105,15 @@ class GeminiBackend(Backend):
             return BackendResponse(error=f"Backend Error: {e}")
 
         try:
-            parts = response["candidates"][0]["content"]["parts"]
-            content = [m['text'] for m in parts if "text" in m.keys()]
-            tool_call = [m['function_call'] for m in parts if 'function_call' in m.keys()]
-        except KeyError:
+            candidates = response.get("candidates", [])
+            if not candidates:
+                return BackendResponse(content=None, tool_call=None, cost=0)
+            
+            parts = candidates[0].get("content", {}).get("parts", [])
+            content = [m.get('text') for m in parts if isinstance(m, dict) and "text" in m]
+            tool_call = [m.get('function_call') for m in parts if isinstance(m, dict) and 'function_call' in m]
+            
+        except Exception as e:
             return BackendResponse(content=None, tool_call=None, cost=0)
         if len(content) > 0:
             content = content[0]

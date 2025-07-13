@@ -28,14 +28,11 @@ parser.add_argument("--autoprompter-model", default=None, help="AutoPrompt model
 parser.add_argument("--max-cost", default=0.0, type=float, help="Max cost in $ (overrides config)")
 parser.add_argument("--enable-autoprompt", action="store_true", help="Init prompt message auto generated, else use generic base prompt")
 parser.add_argument("--strict", action="store_true", help="Enable strict mode for function calling") # TODO only works for Together, add to other backends
-<<<<<<< Updated upstream
-=======
 
 parser.add_argument("--planner_temperature", default=None, type=float, help="Temperature for the planner_model")
 parser.add_argument("--planner_top_p", default=None, type=float, help="Top_p for the planner_model")
 parser.add_argument("--executor_temperature", default=None, type=float, help="Temperature for the executor_model")
 parser.add_argument("--executor_top_p", default=None, type=float, help="Top_p for the executor_model")
->>>>>>> Stashed changes
 
 args = parser.parse_args()
 
@@ -70,8 +67,6 @@ if args.strict:
     config.planner.strict = True
     config.executor.strict = True
     config.autoprompter.strict = True
-<<<<<<< Updated upstream
-=======
 
 if args.executor_temperature is not None:
     config.planner.temperature = args.planner_temperature
@@ -82,7 +77,6 @@ if args.executor_top_p:
     config.planner.top_p = args.planner_top_p
     config.executor.top_p = args.executor_top_p
     #config.autoprompter.top_p = args.top_p
->>>>>>> Stashed changes
 
 autoprompter_backend_cls = MODELS[config.autoprompter.model]
 autoprompter_backend = autoprompter_backend_cls(Role.AUTOPROMPTER, config.autoprompter.model,

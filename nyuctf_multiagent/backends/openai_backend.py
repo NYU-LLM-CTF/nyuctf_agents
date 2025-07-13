@@ -88,6 +88,7 @@ class OpenAIBackend(Backend):
             tool_choice="auto", # TODO try "required" here to force a function call
             parallel_tool_calls=False,
             temperature=self.get_param(self.role, "temperature"),
+            top_p=self.get_param(self.role, "top_p"),
             max_tokens=self.get_param(self.role, "max_tokens")
         )
 

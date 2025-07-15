@@ -66,5 +66,7 @@ def get_log_filename(args, challenge):
         now = datetime.now().strftime("%y%m%d%H%M%S")
         return logdir / f"{chalname}-{now}.json"
 
-def AgentError(Exception):
-    pass
+class AgentError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message

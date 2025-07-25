@@ -11,6 +11,7 @@ class AgentConfig:
     max_rounds: int
     model: str
     temperature: float
+    top_p: float
     max_tokens: int
     prompt: str
     toolset: list
@@ -29,6 +30,7 @@ class Config:
             max_rounds=self.config_yaml.get("planner", {}).get("max_rounds", 30),
             model=self.config_yaml.get("planner", {}).get("model", "gpt-4o-2024-11-20"),
             temperature=self.config_yaml.get("planner", {}).get("temperature", 0.95),
+            top_p=self.config_yaml.get("planner", {}).get("top_p", 1.0),
             max_tokens=self.config_yaml.get("planner", {}).get("max_tokens", 4096),
             prompt=self.config_yaml.get("planner", {}).get("prompt", "prompt/base_planner_prompt.yaml"),
             toolset=self.config_yaml.get("planner", {}).get("toolset", ["run_command", "submit_flag", "giveup", "delegate"]),
@@ -39,6 +41,7 @@ class Config:
             max_rounds=self.config_yaml.get("executor", {}).get("max_rounds", 30),
             model=self.config_yaml.get("executor", {}).get("model", "gpt-4o-2024-11-20"),
             temperature=self.config_yaml.get("executor", {}).get("temperature", 0.95),
+            top_p=self.config_yaml.get("executor", {}).get("top_p", 1.0),
             max_tokens=self.config_yaml.get("executor", {}).get("max_tokens", 4096),
             len_observations=self.config_yaml.get("executor", {}).get("len_observations", 5),
             prompt=self.config_yaml.get("executor", {}).get("prompt", "prompt/base_executor_prompt.yaml"),
@@ -50,6 +53,7 @@ class Config:
             max_rounds=self.config_yaml.get("autoprompter", {}).get("max_rounds", 30),
             model=self.config_yaml.get("autoprompter", {}).get("model", "gpt-4o-2024-11-20"),
             temperature=self.config_yaml.get("autoprompter", {}).get("temperature", 0.95),
+            top_p=self.config_yaml.get("autoprompter", {}).get("top_p", 1.0),
             max_tokens=self.config_yaml.get("autoprompter", {}).get("max_tokens", 4096),
             prompt=self.config_yaml.get("autoprompter", {}).get("prompt", "prompt/autoprompt_prompt.yaml"),
             toolset=self.config_yaml.get("autoprompter", {}).get("toolset", ["run_command", "generate_prompt"]),

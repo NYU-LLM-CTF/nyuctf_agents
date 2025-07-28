@@ -33,6 +33,9 @@ parser.add_argument("--planner_temperature", default=None, type=float, help="Tem
 parser.add_argument("--planner_top_p", default=None, type=float, help="Top_p for the planner_model")
 parser.add_argument("--executor_temperature", default=None, type=float, help="Temperature for the executor_model")
 parser.add_argument("--executor_top_p", default=None, type=float, help="Top_p for the executor_model")
+parser.add_argument("--planner_token", default=None, type=int, help="max_tokens")
+
+parser.add_argument("--executor_token", default=None, type=int, help="max_tokens")
 
 args = parser.parse_args()
 
@@ -77,7 +80,13 @@ if args.executor_top_p:
     config.planner.top_p = args.planner_top_p
     config.executor.top_p = args.executor_top_p
     #config.autoprompter.top_p = args.top_p
-
+if args.executor_token:
+    config.planner.max_tokens = args.planner_token
+    config.executor.max_tokens = args.executor_token
+    print("args.executor_token", args.executor_token)
+    print("args.executor_top_p", args.executor_top_p)
+    print("args.executor_temperature", args.executor_temperature)
+    #config.autoprompter.top_p = args.top_p
 autoprompter_backend_cls = MODELS[config.autoprompter.model]
 autoprompter_backend = autoprompter_backend_cls(Role.AUTOPROMPTER, config.autoprompter.model,
                                       environment.get_toolset(config.autoprompter.toolset),

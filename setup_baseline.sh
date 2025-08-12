@@ -20,5 +20,6 @@ if [ ! -d ghidra_11.0.1_PUBLIC ]; then
     rm ghidra_11.0.1_PUBLIC_20240130.zip
 fi
 
+cd -
 echo "Installing python dependencies"
 pip install -r requirements.txt

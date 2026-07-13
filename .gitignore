@@ -6,6 +6,7 @@ test.sh
 /logs_baseline
 /logs_single_executor
 /logs_dcipher
+/.vscode
 
 __pycache__/
 *.py[cod]

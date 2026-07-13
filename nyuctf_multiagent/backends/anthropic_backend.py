@@ -9,32 +9,68 @@ from .backend import Backend, BackendResponse
 
 class AnthropicBackend(Backend):
     NAME = "anthropic"
+    DISABLE_REASONING = True
+    NO_SAMPLING_MODELS = {
+        "claude-opus-4-8", "claude-sonnet-5", "claude-fable-5",
+        "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6",
+    }
     MODELS = {
-        "claude-3-5-sonnet-20241022": {
+        "claude-opus-4-8": {
+            "max_context": 1000000,
+            "cost_per_input_token": 5e-06,
+            "cost_per_output_token": 25e-06,
+            "min_effort": "low",
+        },
+        "claude-sonnet-5": {
+            "max_context": 1000000,
+            "cost_per_input_token": 3e-06,
+            "cost_per_output_token": 15e-06,
+            "min_effort": "low",
+        },
+        "claude-fable-5": {
+            "max_context": 1000000,
+            "cost_per_input_token": 10e-06,
+            "cost_per_output_token": 50e-06,
+            "min_effort": "low",
+        },
+        "claude-haiku-4-5-20251001": {
+            "max_context": 200000,
+            "cost_per_input_token": 1e-06,
+            "cost_per_output_token": 5e-06,
+        },
+        "claude-opus-4-7": {
+            "max_context": 1000000,
+            "cost_per_input_token": 5e-06,
+            "cost_per_output_token": 25e-06,
+            "min_effort": "low",
+        },
+        "claude-opus-4-6": {
+            "max_context": 1000000,
+            "cost_per_input_token": 5e-06,
+            "cost_per_output_token": 25e-06,
+            "min_effort": "low",
+        },
+        "claude-sonnet-4-6": {
+            "max_context": 1000000,
+            "cost_per_input_token": 3e-06,
+            "cost_per_output_token": 15e-06,
+            "min_effort": "low",
+        },
+        "claude-sonnet-4-5-20250929": {
             "max_context": 200000,
             "cost_per_input_token": 3e-06,
-            "cost_per_output_token": 15e-06
+            "cost_per_output_token": 15e-06,
         },
-        "claude-3-5-sonnet-20240620": {
+        "claude-opus-4-5-20251101": {
             "max_context": 200000,
-            "cost_per_input_token": 3e-06,
-            "cost_per_output_token": 15e-06
+            "cost_per_input_token": 5e-06,
+            "cost_per_output_token": 25e-06,
         },
-        "claude-3-5-haiku-20241022": {
+        "claude-opus-4-1-20250805": {
             "max_context": 200000,
-            "cost_per_input_token": 0.8e-06,
-            "cost_per_output_token": 4e-06
+            "cost_per_input_token": 15e-06,
+            "cost_per_output_token": 75e-06,
         },
-        "claude-3-7-sonnet-20250219": {
-            "max_context": 200000,
-            "cost_per_input_token": 3e-06,
-            "cost_per_output_token": 15e-06
-        },
-        "claude-sonnet-4-20250514": {
-            "max_context": 200000,
-            "cost_per_input_token": 3e-06,
-            "cost_per_output_token": 15e-06
-        }
     }
 
     def __init__(self, role, model, tools, api_key, config):
@@ -44,7 +80,6 @@ class AnthropicBackend(Backend):
 
     @staticmethod
     def get_tool_schema(tool):
-        # Based on required OpenAI format, https://platform.openai.com/docs/guides/function-calling
         return {
             "name": tool.NAME,
             "description": tool.DESCRIPTION,
@@ -59,13 +94,21 @@ class AnthropicBackend(Backend):
         return self.in_price * response.usage.input_tokens + self.out_price * response.usage.output_tokens
 
     def _call_model(self, system, messages):
-        return self.client.messages.create(
-                model=self.model,
-                max_tokens=self.get_param(self.role, "max_tokens"),
-                temperature=self.get_param(self.role, "temperature"),
-                system=system,
-                tools=self.tool_schemas,
-                messages=messages)
+        kwargs = dict(
+            model=self.model,
+            max_tokens=self.get_param(self.role, "max_tokens"),
+            system=system,
+            tools=self.tool_schemas,
+            messages=messages,
+        )
+        if self.model not in self.NO_SAMPLING_MODELS:
+            kwargs["temperature"] = self.get_param(self.role, "temperature")
+        if self.DISABLE_REASONING:
+            effort = self.MODELS[self.model].get("min_effort")
+            if effort is not None:
+                kwargs["thinking"] = {"type": "adaptive"}
+                kwargs["output_config"] = {"effort": effort}
+        return self.client.messages.create(**kwargs)
 
     def send(self, messages):
         formatted_messages = []

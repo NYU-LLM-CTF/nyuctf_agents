@@ -23,6 +23,7 @@ dependencies = [
   "anthropic",
   "rich",
   "pyyaml",
+  "google-genai",
 #  "bs4",
 #  "jinja2",
   "docker",

@@ -8,6 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
+TRIATHLON_IMAGE = "llmctf/2023f-web-triathlon_or_sprint"
 
 
 class Trial:
@@ -19,6 +20,7 @@ class Trial:
         self.directory = None
         self.network_created = False
         self.compose_started = False
+        self.redirect_image = None
 
     @staticmethod
     def run(*args):
@@ -34,6 +36,17 @@ class Trial:
             "docker", "compose", "--project-name", self.project,
             "-f", str(self.challenge.challenge_dir / "docker-compose.yml"),
             "config", "--format", "json"))
+        # This packaged challenge redirects an IP hardcoded in its FTP binary.
+        # Replace only its known host-wide helper, not arbitrary host networking.
+        services = data["services"]
+        router = services.get("iptables", {})
+        server = services.get("servercontainer", {})
+        self.redirect_image = None
+        if (router.get("image", "").removesuffix(":latest") == TRIATHLON_IMAGE + "-iptables"
+                and server.get("image", "").removesuffix(":latest") == TRIATHLON_IMAGE + "-server"
+                and router.get("network_mode") == "host"):
+            self.redirect_image = router["image"]
+            del services["iptables"]
         networks = data.setdefault("networks", {})
         agent_keys = [key for key, value in networks.items()
                       if key == self.base_network or value.get("name") == self.base_network]
@@ -70,6 +83,23 @@ class Trial:
             volume["name"] = f"{self.project}-{key}"
         return data
 
+    def configure_agent(self, container):
+        """Install the legacy destination mapping only in this agent's netns."""
+        if self.redirect_image is None:
+            return
+        server_id = self.compose("ps", "-q", "servercontainer").strip()
+        agent, server = json.loads(self.run("docker", "inspect", container, server_id))
+        if set(agent["NetworkSettings"]["Networks"]) != {self.network}:
+            raise ValueError("Destination redirection requires an agent on its own trial network")
+        target = server["NetworkSettings"]["Networks"][self.network]["IPAddress"]
+        # No host netns, Docker socket, privileged mode, or extra agent capability.
+        # The one-shot helper exits before tools run; its rule dies with the agent.
+        self.run("docker", "run", "--rm", "--network", "container:" + agent["Id"],
+                 "--cap-drop", "ALL", "--cap-add", "NET_ADMIN", "--cap-add", "NET_RAW",
+                 "--entrypoint", "iptables", self.redirect_image,
+                 "-w", "5", "-t", "nat", "-A", "OUTPUT", "-d", "128.238.66.77",
+                 "-p", "tcp", "-j", "DNAT", "--to-destination", target)
+
     def start(self):
         try:
             # Validate the challenge before allocating any Docker resources.
@@ -82,7 +112,9 @@ class Trial:
                 (Path(self.directory.name) / "compose.json").write_text(
                     json.dumps(config))
                 self.compose_started = True  # 'up' can create resources before failing.
-                self.compose("up", "-d", "--force-recreate")
+                # The removed helper previously waited for server health as well.
+                wait = ("--wait", "--wait-timeout", "120") if self.redirect_image else ()
+                self.compose("up", "-d", "--force-recreate", *wait)
         except BaseException:
             self.stop()
             raise

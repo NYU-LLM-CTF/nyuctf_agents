@@ -5,6 +5,7 @@ import shlex
 import subprocess
 import time
 from contextlib import ExitStack
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
@@ -12,7 +13,7 @@ from uuid import uuid4
 import docker
 import pytest
 
-from nyuctf_multiagent.trial import Trial
+from nyuctf_multiagent.trial import TRIATHLON_IMAGE, Trial
 
 
 def config():
@@ -26,7 +27,6 @@ def config():
 
 def test_config_preserves_dns_and_scopes_resources():
     challenge = SimpleNamespace(challenge_dir="/tmp/challenge")
-    from pathlib import Path
     challenge.challenge_dir = Path(challenge.challenge_dir)
     a, b = Trial(challenge, "ctfnet"), Trial(challenge, "ctfnet")
     with patch.object(Trial, "run", return_value=json.dumps(config())):
@@ -47,6 +47,66 @@ def test_implicit_default_challenge_network(tmp_path):
         result = trial.config()
     assert result["networks"]["default"] == {"name": trial.network, "external": True}
     assert result["services"]["web"]["networks"]["default"]["aliases"] == ["challenge"]
+
+
+def test_scopes_known_legacy_host_redirect(tmp_path):
+    data = config()
+    data["services"] = {
+        "servercontainer": {
+            "image": TRIATHLON_IMAGE + "-server",
+            "networks": {"ctfnet": {"aliases": ["web.chal.csaw.io"]}},
+        },
+        "iptables": {
+            "image": TRIATHLON_IMAGE + "-iptables",
+            "network_mode": "host",
+            "privileged": True,
+            "volumes": [{"type": "bind", "source": "/var/run/docker.sock",
+                         "target": "/var/run/docker.sock"}],
+        },
+    }
+    trial = Trial(SimpleNamespace(challenge_dir=tmp_path), "ctfnet")
+    with patch.object(trial, "run", return_value=json.dumps(data)):
+        result = trial.config()
+    assert set(result["services"]) == {"servercontainer"}
+    assert trial.redirect_image == TRIATHLON_IMAGE + "-iptables"
+
+
+def test_configures_legacy_redirect_in_agent_namespace(tmp_path):
+    trial = Trial(SimpleNamespace(challenge_dir=tmp_path), "ctfnet")
+    trial.redirect_image = TRIATHLON_IMAGE + "-iptables"
+    trial.directory = SimpleNamespace(name=str(tmp_path))
+    inspect = json.dumps([
+        {"Id": "agent-id", "NetworkSettings": {"Networks": {trial.network: {}}}},
+        {"Id": "server-id", "NetworkSettings": {"Networks": {
+            trial.network: {"IPAddress": "172.30.0.3"}}}},
+    ])
+    with patch.object(trial, "compose", return_value="server-id\n"), \
+         patch.object(trial, "run", side_effect=[inspect, ""]) as run:
+        trial.configure_agent("agent-id")
+    assert run.call_args_list[1].args == (
+        "docker", "run", "--rm", "--network", "container:agent-id",
+        "--cap-drop", "ALL", "--cap-add", "NET_ADMIN", "--cap-add", "NET_RAW",
+        "--entrypoint", "iptables",
+        TRIATHLON_IMAGE + "-iptables", "-w", "5", "-t", "nat", "-A", "OUTPUT",
+        "-d", "128.238.66.77", "-p", "tcp", "-j", "DNAT",
+        "--to-destination", "172.30.0.3")
+
+
+def test_rejects_redirect_if_agent_has_another_network(tmp_path):
+    trial = Trial(SimpleNamespace(challenge_dir=tmp_path), "ctfnet")
+    trial.redirect_image = TRIATHLON_IMAGE + "-iptables"
+    trial.directory = SimpleNamespace(name=str(tmp_path))
+    inspect = json.dumps([
+        {"Id": "agent-id", "NetworkSettings": {"Networks": {
+            trial.network: {}, "shared": {}}}},
+        {"Id": "server-id", "NetworkSettings": {"Networks": {
+            trial.network: {"IPAddress": "172.30.0.3"}}}},
+    ])
+    with patch.object(trial, "compose", return_value="server-id\n"), \
+         patch.object(trial, "run", return_value=inspect) as run:
+        with pytest.raises(ValueError, match="own trial network"):
+            trial.configure_agent("agent-id")
+    run.assert_called_once()
 
 
 @pytest.mark.parametrize("unsafe", ["host", "external_volume", "static_ip", "missing_network"])
@@ -183,4 +243,59 @@ def test_real_environment_task_and_peer_isolation(package, with_server, tmp_path
             with pytest.raises(docker.errors.NotFound):
                 client.networks.get(name)
     finally:
+        client.images.remove(image.id, force=True)
+
+
+@pytest.mark.skipif(os.getenv("NYUCTF_SPECIAL_DOCKER_TESTS") != "1",
+                    reason="Official challenge image opt-in")
+def test_triathlon_hardcoded_ip_without_host_network():
+    from nyuctf.challenge import CTFChallenge
+    from nyuctf_baseline.environment import CTFEnvironment
+
+    dataset = Path(os.environ["NYUCTF_DATASET"])
+    challenge_path = "test/2023/CSAW-Finals/web/triathlon_or_sprint"
+    challenge = CTFChallenge(
+        {"path": challenge_path, "year": "2023", "event": "CSAW-Finals"}, dataset)
+    client = docker.from_env()
+    tag = "nyuctf-special-agent:" + uuid4().hex
+    image, _ = client.images.build(
+        fileobj=io.BytesIO(b'FROM python:3.12-slim\nCMD ["sleep", "300"]\n'), tag=tag)
+    env = CTFEnvironment(challenge, tag, "ctfnet")
+    try:
+        env.setup()
+        agent = client.containers.get(env.container)
+        assert list(agent.attrs["NetworkSettings"]["Networks"]) == [env.network]
+        assert not agent.attrs["HostConfig"]["CapAdd"]
+        assert env.trial.compose("ps", "--services").split() == ["servercontainer"]
+
+        result = agent.exec_run([
+            "bash", "-c",
+            "cd /home/ctfplayer/ctf_files && timeout 15 ./ftp-conn",
+        ])
+        assert result.exit_code == 0
+        assert b"Successful Ftp Login" in result.output
+        code = ("import urllib.request; "
+                "r=urllib.request.urlopen('http://128.238.66.77:8000/',timeout=10); "
+                "print(r.status, len(r.read()))")
+        result = agent.exec_run(["python", "-c", code])
+        assert result.exit_code == 0 and result.output.startswith(b"200 ")
+
+        server_id = env.trial.compose("ps", "-q", "servercontainer").strip()
+        server = client.containers.get(server_id)
+        server_ip = server.attrs["NetworkSettings"]["Networks"][env.network]["IPAddress"]
+        outsider_network = client.networks.create("nyuctf-outsider-" + uuid4().hex)
+        try:
+            outsider = client.containers.run(
+                "python:3.12-slim", ["sleep", "60"], detach=True,
+                network=outsider_network.name)
+            try:
+                probe = ("import socket; "
+                         f"socket.create_connection(('{server_ip}',8000),timeout=2)")
+                assert outsider.exec_run(["python", "-c", probe]).exit_code != 0
+            finally:
+                outsider.remove(force=True)
+        finally:
+            outsider_network.remove()
+    finally:
+        env.teardown(None, None, None)
         client.images.remove(image.id, force=True)

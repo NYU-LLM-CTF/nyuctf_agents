@@ -1,12 +1,12 @@
 import subprocess
 import sys
-from nyuctf_multiagent.trial import Trial
-import traceback as tb
 from pathlib import Path
-from nyuctf.challenge import CTFChallenge
 
-from .tools import ToolCall, ToolResult, TOOLSETS
+from nyuctf.challenge import CTFChallenge
+from nyuctf_multiagent.trial import Trial
+
 from .ctflogging import status
+from .tools import TOOLSETS
 
 class CTFEnvironment:
     """Manages the docker env for the agent, and the challenge container."""
@@ -30,6 +30,7 @@ class CTFEnvironment:
         self.trial.start()
         try:
             self.start_docker()
+            self.trial.configure_agent(self.container)
             for tool in self.available_tools.values():
                 tool.setup()
             for file in self.challenge.files:
@@ -81,4 +82,3 @@ class CTFEnvironment:
     @property
     def container_home(self):
         return Path("/home/ctfplayer")
-

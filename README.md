@@ -42,11 +42,13 @@ Host port publications are removed: evaluations access challenge services by
 hostname and internal port. `network_mode` overrides, static addresses/IPAM, unmanaged
 external networks, and externally shared named volumes are rejected with an
 error rather than silently defeating isolation. Such custom challenge setups
-need adaptation. In dataset `v20250206`, `test/2023/CSAW-Finals/web/triathlon_or_sprint`
-uses a privileged host-network helper with the Docker socket and is therefore
-rejected; it needs a separate challenge-side redesign. Configuration checks accept
-the other 156 Compose-backed test/development challenges (this is not a complete
-execution of those challenges). Existing challenge bind mounts and internet access are retained;
+need adaptation. The one known exception in dataset `v20250206`,
+`test/2023/CSAW-Finals/web/triathlon_or_sprint`, is converted explicitly: its
+hardcoded destination is redirected inside that trial's agent network namespace.
+The original privileged host-network helper and Docker socket mount are removed.
+Configuration checks accept all 157 Compose-backed test/development challenges
+(this is not a complete execution of all challenges). Existing challenge bind
+mounts and internet access are retained;
 this change does not isolate shared host files or allowed external services.
 For large numbers of concurrent trials, configure Docker address pools to supply
 enough independent bridge subnets.
@@ -56,6 +58,14 @@ Tests: install `pytest` and the baseline's `ToolDefGenerator` dependency, then r
 Docker/Compose checks using `python:3.12-slim`. These cover both agent frameworks,
 file-only and hosted challenges, DNS, internal ports, log/volume cleanup, and
 cross-trial access. No model credentials are needed.
+
+The hardcoded-IP challenge has a separate official-image check:
+
+```bash
+NYUCTF_SPECIAL_DOCKER_TESTS=1 NYUCTF_DATASET=/path/to/NYU_CTF_Bench \
+PYTHONPATH=. python -m pytest tests/test_trial_isolation.py \
+  -k triathlon_hardcoded_ip
+```
 
 ## Running D-CIPHER
 
@@ -82,4 +92,3 @@ python3 run_baseline.py -c configs/baseline/base_config.yaml --split <test|devel
 
 While the baseline agent code is present in the main branch, you can access the baseline's last updated version at [v20250206](https://github.com/NYU-LLM-CTF/llm_ctf_automation/releases/tag/20250206).
 This is the code used for the [NYU CTF Bench](https://nyu-llm-ctf.github.io) paper.
-

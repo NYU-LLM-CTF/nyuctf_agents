@@ -1,4 +1,6 @@
 import subprocess
+import sys
+from nyuctf_multiagent.trial import Trial
 import json
 from pathlib import Path
 from nyuctf.challenge import CTFChallenge
@@ -11,7 +13,9 @@ class CTFEnvironment:
     def __init__(self, challenge: CTFChallenge, container_image: str, network: str, toolset: str="default"):
         self.challenge = challenge
         self.container_image = container_image
-        self.network = network
+        self.trial = Trial(challenge, network)
+        self.network = self.trial.network
+        self.container = None
         self.tools = {}
         for tool in ALLTOOLS:
             tool_instance = tool(self)
@@ -27,19 +31,29 @@ class CTFEnvironment:
         return {name: self.tools[name] for name in toolset}
 
     def setup(self):
-        self.start_docker()
-        for tool in self.tools.values():
-            tool.setup()
-        # Copy files
-        for file in self.challenge.files:
-            hostpath = self.challenge.challenge_dir / file
-            self.copy_into_container(hostpath, f"ctf_files/{file}")
+        self.trial.start()
+        try:
+            self.start_docker()
+            for tool in self.tools.values():
+                tool.setup()
+            for file in self.challenge.files:
+                hostpath = self.challenge.challenge_dir / file
+                self.copy_into_container(hostpath, f"ctf_files/{file}")
+        except BaseException:
+            self.teardown(*sys.exc_info())
+            raise
 
     def teardown(self, exc_type, exc_value, traceback):
-        # Tear down the tools first so they can clean up
-        for tool in self.tools.values():
-            tool.teardown(exc_type, exc_value, traceback)
-        self.stop_docker()
+        try:
+            for tool in self.tools.values():
+                tool.teardown(exc_type, exc_value, traceback)
+        finally:
+            try:
+                if self.container is not None:
+                    self.stop_docker()
+                    self.container = None
+            finally:
+                self.trial.stop()
 
     def start_docker(self):
         logger.print(f"Starting environment container {self.container_image}...", force=True)

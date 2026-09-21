@@ -1,14 +1,5 @@
 #!/usr/bin/env bash
 
-networkname="ctfnet"
-network_exists=$(docker network ls | grep $networkname)
-# Create network
-if [ -z "$network_exists" ]; then
-    docker network create ctfnet
-else
-    echo "Network ${networkname} already exists, skip!"
-fi
-
 BASE=$(dirname $0)
 # Build main docker image
 cd $BASE/docker/baseline && docker build --build-arg HOST_UID=$(id -u) -t ctfenv .

@@ -22,7 +22,7 @@ def load_common_options(parser):
     parser.add_argument("--keys", default="keys.cfg", help="Path to keys.cfg file for loading API keys")
 
     parser.add_argument("--container-image", default="ctfenv:multiagent", help="Image tag of docker container")
-    parser.add_argument("--container-network", default="ctfnet", help="Network name of docker container")
+    parser.add_argument("--container-network", default="ctfnet", help="Challenge network to replace with a private trial network")
 
     # Logging options
     parser.add_argument("-d", "--debug", default=False, action="store_true", help="Print debug messages")

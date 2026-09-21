@@ -84,7 +84,6 @@ class SingleAgent(BaseAgent):
         self.logfile = logfile
 
     def __enter__(self):
-        self.challenge.start_challenge_container()
         self.environment.setup()
         self.start_time = now()
         logger.start_progress()
@@ -92,7 +91,6 @@ class SingleAgent(BaseAgent):
 
     def __exit__(self, ex_type, ex_val, tb):
         self.environment.teardown(ex_type, ex_val, tb)
-        self.challenge.stop_challenge_container()
         self.end_time = now()
 
         error = f"{ex_type.__name__}: {str(ex_val)}" if ex_type is not None else None
@@ -421,7 +419,6 @@ class PlannerExecutorSystem:
         self.all_executors = []
 
     def __enter__(self):
-        self.challenge.start_challenge_container()
         self.environment.setup()
         self.start_time = now()
         logger.start_progress()
@@ -429,7 +426,6 @@ class PlannerExecutorSystem:
 
     def __exit__(self, ex_type, ex_val, tb):
         self.environment.teardown(ex_type, ex_val, tb)
-        self.challenge.stop_challenge_container()
         self.end_time = now()
 
         error = f"{ex_type.__name__}: {str(ex_val)}" if ex_type is not None else None

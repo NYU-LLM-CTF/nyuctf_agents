@@ -40,7 +40,7 @@ def main():
     parser.add_argument("-d", "--debug", action="store_true", help="print debug messages")
     parser.add_argument("-M", "--model", help="the model to use (default is backend-specific)", choices=model_list)
     parser.add_argument("-C", "--container-image", default="ctfenv", help="the Docker image to use for the CTF environment")
-    parser.add_argument("-N", "--network", default="ctfnet", help="the Docker network to use for the CTF environment")
+    parser.add_argument("-N", "--network", default="ctfnet", help="challenge network to replace with a private trial network")
     parser.add_argument("--api-key", default=None, help="API key to use when calling the model")
     parser.add_argument("--api-endpoint", default=None, help="API endpoint URL to use when calling the model")
     parser.add_argument("--backend", default="openai", choices=Backend.registry.keys(), help="model backend to use")

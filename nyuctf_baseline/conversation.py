@@ -40,7 +40,6 @@ class CTFConversation:
 
     def __enter__(self):
         self.backend.setup()
-        self.challenge.start_challenge_container()
         self.environment.setup()
 
         self.start_time = now()
@@ -154,7 +153,6 @@ class CTFConversation:
     def __exit__(self, exc_type, exc_value, traceback):
         self.end_time = now()
         self.environment.teardown(exc_type, exc_value, traceback)
-        self.challenge.stop_challenge_container()
 
         self.logfile.write_text(json.dumps(
             {
